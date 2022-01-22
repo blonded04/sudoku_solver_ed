@@ -1,0 +1,36 @@
+[package]
+name = "sudoku_solver_ed"
+version = "0.1.0"
+edition = "2021"
+
+default-run = "sudoku_solver_ed"
+
+[[bin]]
+name = "sudoku_solver_ed"
+path = "src/main.rs"
+
+[[bin]]
+name = "single_dfs"
+path = "src/bin/single_dfs.rs"
+
+[[bin]]
+name = "single_randomized_dfs"
+path = "src/bin/single_randomized_dfs.rs"
+
+[[bin]]
+name = "single_simulated_annealing"
+path = "src/bin/single_simulated_annealing.rs"
+
+[[bin]]
+name = "multi_dfs"
+path = "src/bin/multi_dfs.rs"
+
+[[bin]]
+name = "multi_randomized_dfs"
+path = "src/bin/multi_randomized_dfs.rs"
+
+[[bin]]
+name = "multi_simulated_annealing"
+path = "src/bin/multi_simulated_annealing.rs"
+
+[dependencies]
