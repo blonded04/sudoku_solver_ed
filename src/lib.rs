@@ -117,7 +117,7 @@ pub mod grid {
             Cell::Empty
         }
     }
-    
+
     impl Default for Table {
         fn default() -> Self {
             Table { grid: [[Cell::Empty; 9]; 9] }
@@ -132,12 +132,50 @@ pub mod grid {
 }
 
 pub mod solver {
-    // use crate::grid::{Cell, Table};
-    //
-    // pub fn solve_dfs_single(t: Table) -> Table {
-    //     let emptys = t.empty_cells();
-    //
-    //     assert!(t.solved());
-    //     t
-    // }
+    use rand::thread_rng;
+    use rand::seq::SliceRandom;
+    use crate::grid::{Cell, Table};
+
+    fn dfs(t: &mut Table, i: usize, emptys: &Vec<(usize, usize)>) -> bool {
+        if emptys.len() <= i {
+            return true;
+        }
+        for d in 1..=9 {
+            let (row, col) = emptys[i];
+            t.grid[row][col] = Cell::Digit(d);
+            if t.row_is_ok(row) && t.col_is_ok(col) && t.group_is_ok(row / 3, col / 3) && dfs(t, i + 1, emptys) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn dfs_rand(t: &mut Table, i: usize, emptys: &Vec<(usize, usize)>) -> bool {
+        if emptys.len() <= i {
+            return true;
+        }
+        let mut order: Vec<u8> = (1..=9).collect();
+        order.shuffle(&mut thread_rng());
+        for d in order {
+            let (row, col) = emptys[i];
+            t.grid[row][col] = Cell::Digit(d);
+            if t.row_is_ok(row) && t.col_is_ok(col) && t.group_is_ok(row / 3, col / 3) && dfs(t, i + 1, emptys) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn solve_dfs_single(mut t: Table) -> Table {
+        let emptys = t.empty_cells();
+        assert!(dfs(&mut t, 0, &emptys));
+        t
+    }
+
+    pub fn solve_randomized_dfs_single(mut t: Table) -> Table {
+        let mut emptys = t.empty_cells();
+        emptys.shuffle(&mut thread_rng());
+        assert!(dfs_rand(&mut t, 0, &emptys));
+        t
+    }
 }

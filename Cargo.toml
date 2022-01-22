@@ -34,3 +34,4 @@ name = "multi_simulated_annealing"
 path = "src/bin/multi_simulated_annealing.rs"
 
 [dependencies]
+rand = "0.8.4"
