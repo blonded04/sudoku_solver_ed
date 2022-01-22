@@ -5,7 +5,7 @@ pub mod grid {
         Empty,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Eq, PartialEq)]
     pub struct Table {
         pub grid: [[Cell; 9]; 9],
     }
@@ -17,6 +17,21 @@ pub mod grid {
 
         pub fn from(other: &Table) -> Table {
             other.clone()
+        }
+
+        pub fn from_arr(arr: [[u8; 9]; 9]) -> Table {
+            let mut grid: [[Cell; 9]; 9] = Default::default();
+            for i in 0..9 {
+                for j in 0..9 {
+                    assert!(arr[i][j] < 10);
+                    if arr[i][j] == 0 {
+                        grid[i][j] = Cell::Empty;
+                    } else {
+                        grid[i][j] = Cell::Digit(arr[i][j]);
+                    }
+                }
+            }
+            Table { grid }
         }
 
         pub fn empty_cells(&self) -> Vec<(usize, usize)> {
@@ -79,8 +94,30 @@ pub mod grid {
             }
             true
         }
+
+        pub fn solved(&self) -> bool {
+            for i in 0..9 {
+                if !self.row_is_ok(i) || !self.col_is_ok(i) {
+                    return false;
+                }
+            }
+            for gr in 0..3 {
+                for gc in 0..3 {
+                    if !self.group_is_ok(gr, gc) {
+                        return false;
+                    }
+                }
+            }
+            self.empty_cells().is_empty()
+        }
     }
 
+    impl Default for Cell {
+        fn default() -> Self {
+            Cell::Empty
+        }
+    }
+    
     impl Default for Table {
         fn default() -> Self {
             Table { grid: [[Cell::Empty; 9]; 9] }
@@ -94,4 +131,13 @@ pub mod grid {
     }
 }
 
-pub mod solver {}
+pub mod solver {
+    // use crate::grid::{Cell, Table};
+    //
+    // pub fn solve_dfs_single(t: Table) -> Table {
+    //     let emptys = t.empty_cells();
+    //
+    //     assert!(t.solved());
+    //     t
+    // }
+}
