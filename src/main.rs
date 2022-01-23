@@ -1,3 +1,5 @@
+use sudoku_solver_ed::app;
+
 fn main() {
-    println!("Hello, world!");
+    app::table_from_stdin().print();
 }

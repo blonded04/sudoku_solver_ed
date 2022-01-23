@@ -1,4 +1,6 @@
 pub mod grid {
+    use std::io;
+
     #[derive(Clone, Copy, Eq, PartialEq, Debug)]
     pub enum Cell {
         Digit(u8),
@@ -110,6 +112,49 @@ pub mod grid {
             }
             self.empty_cells().is_empty()
         }
+
+        pub fn read() -> Result<Table, &'static str> {
+            let mut grid: [[u8; 9]; 9] = Default::default();
+            for r in 0..9 {
+                let mut buf = String::new();
+                if let Err(_e) = io::stdin().read_line(&mut buf) {
+                    return Err("Couldn't read from stdin.");
+                }
+                let digits: Vec<u32> = buf
+                    .split_whitespace()
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+
+                if digits.len() != 9 {
+                    return Err("Please follow input format.");
+                }
+                for c in 0..9 {
+                    grid[r][c] = digits[c] as u8;
+                }
+            }
+            Ok(Table::from_arr(grid))
+        }
+
+        pub fn print(&self) {
+            for r in 0..9 {
+                for c in 0..9 {
+                    let v;
+                    if let Cell::Digit(d) = self.grid[r][c] {
+                        v = d;
+                    } else {
+                        v = 0;
+                    }
+                    if c != 8 {
+                        print!(" {} |", v);
+                    } else {
+                        println!(" {} ", v);
+                    }
+                }
+                if r != 9 {
+                    println!("-----------------------------------");
+                }
+            }
+        }
     }
 
     impl Default for Cell {
@@ -140,7 +185,7 @@ pub mod solver {
     use rand::seq::SliceRandom;
     use rand::{thread_rng, Rng};
 
-    pub const ANNEALING_ITERS: u16 = 2000;
+    pub const ANNEALING_ITERS: u32 = 130000;
 
     fn dfs(t: &mut Table, i: usize, emptys: &Vec<(usize, usize)>) -> bool {
         if emptys.len() <= i {
@@ -157,6 +202,7 @@ pub mod solver {
                 return true;
             }
         }
+        t.grid[emptys[i].0][emptys[i].1] = Cell::Empty;
         false
     }
 
@@ -177,6 +223,7 @@ pub mod solver {
                 return true;
             }
         }
+        t.grid[emptys[i].0][emptys[i].1] = Cell::Empty;
         false
     }
 
@@ -215,7 +262,7 @@ pub mod solver {
         }
     }
 
-    fn inversions(t: &mut Table) -> i16 {
+    fn inversions(t: &Table) -> i16 {
         let mut res = 0;
         for i in 0..9 {
             if !t.row_is_ok(i) {
@@ -279,7 +326,7 @@ pub mod solver {
 
         let mut values = generate_digits(emptys.len());
         apply(&mut t, &emptys, &values);
-        let mut opt: i16 = inversions(&mut t);
+        let mut opt: i16 = inversions(&t);
 
         let mut temperature: f32 = 1.0;
         let mut iters = 0;
@@ -304,5 +351,23 @@ pub mod solver {
         } else {
             Err("No solution found")
         }
+    }
+}
+
+pub mod app {
+    use crate::grid::Table;
+
+    pub fn table_from_stdin() -> Table {
+        let t;
+        loop {
+            match Table::read() {
+                Ok(tb) => {
+                    t = tb;
+                    break;
+                }
+                Err(e) => println!("Error: {}.\n Try again.", e),
+            }
+        }
+        t
     }
 }
