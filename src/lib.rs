@@ -120,21 +120,27 @@ pub mod grid {
 
     impl Default for Table {
         fn default() -> Self {
-            Table { grid: [[Cell::Empty; 9]; 9] }
+            Table {
+                grid: [[Cell::Empty; 9]; 9],
+            }
         }
     }
 
     impl Clone for Table {
         fn clone(&self) -> Self {
-            Table { grid: self.grid.clone() }
+            Table {
+                grid: self.grid.clone(),
+            }
         }
     }
 }
 
 pub mod solver {
-    use rand::thread_rng;
-    use rand::seq::SliceRandom;
     use crate::grid::{Cell, Table};
+    use rand::seq::SliceRandom;
+    use rand::{thread_rng, Rng};
+
+    pub const ANNEALING_ITERS: u16 = 2000;
 
     fn dfs(t: &mut Table, i: usize, emptys: &Vec<(usize, usize)>) -> bool {
         if emptys.len() <= i {
@@ -143,7 +149,11 @@ pub mod solver {
         for d in 1..=9 {
             let (row, col) = emptys[i];
             t.grid[row][col] = Cell::Digit(d);
-            if t.row_is_ok(row) && t.col_is_ok(col) && t.group_is_ok(row / 3, col / 3) && dfs(t, i + 1, emptys) {
+            if t.row_is_ok(row)
+                && t.col_is_ok(col)
+                && t.group_is_ok(row / 3, col / 3)
+                && dfs(t, i + 1, emptys)
+            {
                 return true;
             }
         }
@@ -159,23 +169,140 @@ pub mod solver {
         for d in order {
             let (row, col) = emptys[i];
             t.grid[row][col] = Cell::Digit(d);
-            if t.row_is_ok(row) && t.col_is_ok(col) && t.group_is_ok(row / 3, col / 3) && dfs(t, i + 1, emptys) {
+            if t.row_is_ok(row)
+                && t.col_is_ok(col)
+                && t.group_is_ok(row / 3, col / 3)
+                && dfs(t, i + 1, emptys)
+            {
                 return true;
             }
         }
         false
     }
 
-    pub fn solve_dfs_single(mut t: Table) -> Table {
+    pub fn solve_dfs_single(mut t: Table) -> Result<Table, &'static str> {
         let emptys = t.empty_cells();
-        assert!(dfs(&mut t, 0, &emptys));
-        t
+        if dfs(&mut t, 0, &emptys) {
+            Ok(t)
+        } else {
+            Err("No solution found")
+        }
     }
 
-    pub fn solve_randomized_dfs_single(mut t: Table) -> Table {
+    pub fn solve_randomized_dfs_single(mut t: Table) -> Result<Table, &'static str> {
         let mut emptys = t.empty_cells();
         emptys.shuffle(&mut thread_rng());
-        assert!(dfs_rand(&mut t, 0, &emptys));
-        t
+        if dfs_rand(&mut t, 0, &emptys) {
+            Ok(t)
+        } else {
+            Err("No solution found")
+        }
+    }
+
+    fn generate_digits(sz: usize) -> Vec<u8> {
+        let mut res = vec![];
+        res.reserve(sz);
+        for _i in 0..sz {
+            res.push(thread_rng().gen_range(1..=9));
+        }
+        res
+    }
+
+    fn apply(t: &mut Table, emptys: &Vec<(usize, usize)>, values: &Vec<u8>) {
+        assert_eq!(emptys.len(), values.len());
+        for i in 0..emptys.len() {
+            t.grid[emptys[i].0][emptys[i].1] = Cell::Digit(values[i]);
+        }
+    }
+
+    fn inversions(t: &mut Table) -> i16 {
+        let mut res = 0;
+        for i in 0..9 {
+            if !t.row_is_ok(i) {
+                res += 1;
+            }
+            if !t.col_is_ok(i) {
+                res += 1;
+            }
+        }
+        for gr in 0..3 {
+            for gc in 0..3 {
+                if !t.group_is_ok(gr, gc) {
+                    res += 1;
+                }
+            }
+        }
+        res
+    }
+
+    fn calc_change(t: &mut Table, r: usize, c: usize, d: u8) -> i16 {
+        let old = t.grid[r][c];
+
+        let mut had = 0;
+        if !t.row_is_ok(r) {
+            had += 1;
+        }
+        if !t.col_is_ok(c) {
+            had += 1;
+        }
+        if !t.group_is_ok(r / 3, c / 3) {
+            had += 1;
+        }
+
+        t.grid[r][c] = Cell::Digit(d);
+        let mut got = 0;
+        if !t.row_is_ok(r) {
+            got += 1;
+        }
+        if !t.col_is_ok(c) {
+            got += 1;
+        }
+        if !t.group_is_ok(r / 3, c / 3) {
+            got += 1;
+        }
+
+        t.grid[r][c] = old;
+        got - had
+    }
+
+    fn probability(delta: i16, temperature: f32) -> f32 {
+        if delta <= 0 {
+            1.1
+        } else {
+            let power: f32 = (-delta as f32) / temperature;
+            power.exp()
+        }
+    }
+
+    pub fn solve_simulated_annealing_single(mut t: Table) -> Result<Table, &'static str> {
+        let emptys = t.empty_cells();
+
+        let mut values = generate_digits(emptys.len());
+        apply(&mut t, &emptys, &values);
+        let mut opt: i16 = inversions(&mut t);
+
+        let mut temperature: f32 = 1.0;
+        let mut iters = 0;
+
+        while opt != 0 && iters < ANNEALING_ITERS {
+            let i = thread_rng().gen_range(0..emptys.len());
+            let d = thread_rng().gen_range(1..=9);
+
+            let delta = calc_change(&mut t, emptys[i].0, emptys[i].1, d);
+
+            if thread_rng().gen_range(0.0..1.0) < probability(delta, temperature) {
+                t.grid[emptys[i].0][emptys[i].1] = Cell::Digit(d);
+                values[i] = d;
+                opt += delta;
+            }
+
+            temperature *= 0.99;
+            iters += 1;
+        }
+        if t.solved() {
+            Ok(t)
+        } else {
+            Err("No solution found")
+        }
     }
 }
